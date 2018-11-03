@@ -1,0 +1,5 @@
+server = "172.31.31.248"
+port = "27017"
+database = "zimu"
+user = ""
+password = ""

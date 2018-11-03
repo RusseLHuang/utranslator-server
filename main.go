@@ -1,14 +1,33 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/labstack/echo"
+	"github.com/spf13/viper"
+	"github.com/utranslator-server/constant"
 	"github.com/utranslator-server/controllers"
 	"github.com/utranslator-server/database"
 	"github.com/utranslator-server/utils"
 )
 
 func main() {
-	_, err := db.Connect("", "", "utranslator", "127.0.0.1")
+
+	if os.Getenv(constant.ENV) != constant.Production ||
+		os.Getenv(constant.ENV) != constant.Development {
+		viper.SetConfigName("config")
+		viper.SetConfigType("toml")
+		viper.AddConfigPath(".")
+		viper.ReadInConfig()
+	} else {
+		viper.AutomaticEnv()
+	}
+
+	host := viper.GetString("server")
+	fmt.Println("Host : ", host)
+
+	_, err := db.Connect("", "", "zimu", host)
 
 	if err != nil {
 		panic(err)
