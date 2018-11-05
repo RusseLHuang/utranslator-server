@@ -44,7 +44,7 @@ func main() {
 
 	//
 	e.GET("/member/:id", controllers.GetMember())
-	e.POST("/member/google_token", controllers.CreateGoogleToken())
+	e.POST("/member/google-token", controllers.CreateGoogleToken())
 
 	e.Logger.Fatal(e.Start(":7777"))
 }

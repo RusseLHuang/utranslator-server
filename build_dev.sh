@@ -1,2 +1,3 @@
 cp -R ./config/config.development.toml ./config.toml
-go run main.go
+go build main.go
+pmgo start $GOPATH/src/github.com/utranslator-server
