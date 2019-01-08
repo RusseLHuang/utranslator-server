@@ -1,70 +1,122 @@
 package model
 
 import (
-	"time"
+	"fmt"
+	"log"
 
-	"github.com/globalsign/mgo/bson"
-	"github.com/utranslator-server/database"
+	"github.com/gocql/gocql"
+	db "github.com/utranslator-server/database"
 	"github.com/utranslator-server/dto"
 )
 
-type IMember interface {
-	Get(memberId string) (m *Member, err error)
-}
-
 type Member struct {
-	ID                bson.ObjectId `bson:"_id,omitempty" json:"id,omitempty"`
-	FacebookID        string        `bson:"facebook_id" json:"facebookId"`
-	GoogleID          string        `bson:"google_id" json:"googleId"`
-	Email             string        `bson:"email" json:"email"`
-	Username          string        `bson:"username" json:"username"`
-	MobilePhoneNumber string        `bson:"mobile_phone_number" json:"mobilePhoneNumber"`
-	CreatedAt         time.Time     `bson:"created_at" json:"createdAt"`
-	UpdatedAt         time.Time     `bson:"updated_at" json:"updatedAt"`
+	MemberID gocql.UUID `json:"memberId,omitempty"`
+	Email    string     `json:"email"`
+	Username string     `json:"username"`
 }
 
-func (member *Member) Save() (err error) {
-	collection := db.GetDB().C("member")
-	err = collection.Insert(member)
+type MemberByFacebook struct {
+	MobilePhoneNumber string     `json:"mobilePhoneNumber"`
+	FacebookID        string     `json:facebookId`
+	MemberID          gocql.UUID `json:"memberId,omitempty"`
+}
 
-	if err != nil && err.Error() == "no reachable servers" {
+type MemberByGoogle struct {
+	MemberID gocql.UUID `json:"memberId,omitempty"`
+	GoogleID string     `json:googleId`
+	Email    string     `json:"email"`
+}
+
+func (m *Member) Save() (id gocql.UUID, err error) {
+	id, err = gocql.RandomUUID()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := db.GetSession().Query(`INSERT INTO member (member_id, email, username) VALUES (?, ?, ?)`,
+		id, m.Email, m.Username).Exec(); err != nil {
+		log.Fatal(err)
+	}
+	return
+}
+
+func (m *MemberByGoogle) SaveByGoogle() {
+	if err := db.GetSession().Query(`INSERT INTO member_by_google (member_id, google_id, email) VALUES (?, ?, ?)`,
+		m.MemberID, m.GoogleID, m.Email).Exec(); err != nil {
+		log.Fatal(err)
 		panic(err)
 	}
-
-	return
 }
 
-func (member *Member) CreateByGoogle(googleUserInfo dto.GoogleUserInfo) (*Member, error) {
-	m := Member{
-		GoogleID:  googleUserInfo.ID,
-		Email:     googleUserInfo.Email,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+func (m *MemberByGoogle) CreateByGoogle(googleUserInfo dto.GoogleUserInfo) (googleMember *MemberByGoogle, err error) {
+	member := Member{
+		Username: "",
+		Email:    googleUserInfo.Email,
 	}
-	m.Save()
+	memberID, err := member.Save()
 
-	return &m, nil
+	if err != nil {
+		return googleMember, err
+	}
+
+	googleMember = &MemberByGoogle{
+		MemberID: memberID,
+		GoogleID: googleUserInfo.ID,
+		Email:    googleUserInfo.Email,
+	}
+	googleMember.SaveByGoogle()
+
+	return googleMember, nil
 }
 
-func (member *Member) Get(memberId string) (m *Member, err error) {
-	bsonObjId := bson.ObjectIdHex(memberId)
-	collection := db.GetDB().C("member")
-	err = collection.FindId(bsonObjId).One(&m)
+func (m *Member) Get(memberId string) (member *Member, err error) {
+	mi := map[string]interface{}{}
+	uuid, err := gocql.ParseUUID(memberId)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return m, err
+	query := db.GetSession().Query(`SELECT member_id, email, username FROM member WHERE member_id = ? LIMIT 1`,
+		uuid).Consistency(gocql.One).Iter()
+
+	for query.MapScan(mi) {
+		member = &Member{
+			MemberID: mi["member_id"].(gocql.UUID),
+			Email:    mi["email"].(string),
+			Username: mi["username"].(string),
+		}
+	}
+
+	return member, err
 }
 
-func (member *Member) GetByGoogleId(memberGoogleId string) (m *Member, err error) {
-	collection := db.GetDB().C("member")
-	err = collection.Find(bson.M{"google_id": memberGoogleId}).One(&m)
+func (m *MemberByGoogle) GetByGoogleId(memberGoogleId string) (member *MemberByGoogle, err error) {
+	mi := map[string]interface{}{}
+	query := db.GetSession().Query(`SELECT google_id, member_id, email FROM member_by_google WHERE google_id = ? LIMIT 1`,
+		memberGoogleId).Consistency(gocql.One).Iter()
 
-	return
+	for query.MapScan(mi) {
+		member = &MemberByGoogle{
+			GoogleID: mi["google_id"].(string),
+			MemberID: mi["member_id"].(gocql.UUID),
+			Email:    mi["email"].(string),
+		}
+	}
+
+	return member, err
 }
 
 func (member *Member) Post(memberId string) (m *Member, err error) {
-	bsonObjId := bson.ObjectIdHex(memberId)
-	collection := db.GetDB().C("member")
-	err = collection.FindId(bsonObjId).One(&m)
+	fmt.Println(memberId)
+	mi := map[string]interface{}{}
+	query := db.GetSession().Query(`SELECT * FROM member WHERE member_id = ? LIMIT 1`,
+		memberId).Consistency(gocql.One)
 
-	return m, err
+	err = query.Scan(&mi)
+	fmt.Println(mi)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return nil, err
 }

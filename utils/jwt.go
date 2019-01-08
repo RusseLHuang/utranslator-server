@@ -4,16 +4,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/globalsign/mgo/bson"
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gocql/gocql"
 	"github.com/utranslator-server/constant"
 	"github.com/utranslator-server/dto"
-	"github.com/utranslator-server/models"
+	model "github.com/utranslator-server/models"
 )
 
 type TokenClaim struct {
-	MemberID bson.ObjectId `json:"memberId"`
-	Email    string        `json:"email"`
+	MemberID gocql.UUID `json:"memberId"`
+	Email    string     `json:"email"`
 	jwt.StandardClaims
 }
 
@@ -21,7 +21,7 @@ func GenerateToken(member *model.Member) (*dto.TokenAuthentication, error) {
 	expiresAt := time.Now().Add(30 * time.Minute).Unix()
 
 	claims := TokenClaim{
-		MemberID: member.ID,
+		MemberID: member.MemberID,
 		Email:    member.Email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expiresAt,

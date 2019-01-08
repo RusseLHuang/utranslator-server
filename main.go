@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/viper"
 	"github.com/utranslator-server/constant"
 	"github.com/utranslator-server/controllers"
-	"github.com/utranslator-server/database"
-	"github.com/utranslator-server/utils"
+	db "github.com/utranslator-server/database"
+	credential "github.com/utranslator-server/utils"
 )
 
 func main() {
@@ -27,12 +27,7 @@ func main() {
 	host := viper.GetString("server")
 	fmt.Println("Host : ", host)
 
-	_, err := db.Connect("", "", "zimu", host)
-
-	if err != nil {
-		panic(err)
-	}
-
+	db.Connect()
 	credential.Init()
 
 	e := echo.New()

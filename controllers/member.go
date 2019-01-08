@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/utranslator-server/dto"
-	"github.com/utranslator-server/models"
-	"github.com/utranslator-server/utils"
+	model "github.com/utranslator-server/models"
+	credential "github.com/utranslator-server/utils"
 )
 
 type Member struct {
@@ -39,7 +39,7 @@ func CreateGoogleToken() echo.HandlerFunc {
 			return
 		}
 
-		memberModel := model.Member{}
+		memberModel := model.MemberByGoogle{}
 		member, err := memberModel.GetByGoogleId(googleUserInfo.ID)
 		if err != nil && err.Error() != "not found" {
 			return
@@ -52,7 +52,11 @@ func CreateGoogleToken() echo.HandlerFunc {
 			}
 		}
 
-		tokenAuth, err := credential.GenerateToken(member)
+		memberToken := &model.Member{
+			MemberID: member.MemberID,
+			Email:    member.Email,
+		}
+		tokenAuth, err := credential.GenerateToken(memberToken)
 		if err != nil {
 			return
 		}

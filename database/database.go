@@ -1,33 +1,21 @@
 package db
 
 import (
-	"time"
-
-	"github.com/globalsign/mgo"
+	"github.com/gocql/gocql"
 )
 
-var DB *mgo.Database
+var session *gocql.Session
 
-func Connect(user, password, dbname, host string) (*mgo.Database, error) {
-	mgoDialInfo := &mgo.DialInfo{
-		Addrs:    []string{host},
-		Username: user,
-		Password: password,
-		Database: dbname,
-		Timeout:  5 * time.Second,
-	}
+func Connect() *gocql.Session {
+	cluster := gocql.NewCluster("127.0.0.1")
+	cluster.Keyspace = "dev"
+	cluster.Consistency = gocql.Quorum
 
-	session, err := mgo.DialWithInfo(mgoDialInfo)
+	session, _ = cluster.CreateSession()
 
-	if err != nil {
-		return nil, err
-	}
-
-	DB = session.DB(dbname)
-
-	return DB, nil
+	return session
 }
 
-func GetDB() *mgo.Database {
-	return DB
+func GetSession() *gocql.Session {
+	return session
 }
